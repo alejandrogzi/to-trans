@@ -1,42 +1,38 @@
-use std::collections::HashMap;
+use seq_io::fasta::{OwnedRecord, Reader};
 use std::error::Error;
-use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::path::PathBuf;
 
-#[derive(Debug)]
 pub struct Fasta {
-    index: HashMap<Vec<u8>, Vec<u8>>,
+    pub records: Vec<OwnedRecord>,
 }
 
 impl Fasta {
-    pub fn new(fa: &str) -> Result<Self, Box<dyn Error>> {
-        let reader = BufReader::new(File::open(fa)?);
-        let mut index = HashMap::new();
-        let mut chr = Vec::new();
-        let mut seq = Vec::new();
+    pub fn read(file: &PathBuf) -> Result<Fasta, Box<dyn Error>> {
+        let mut reader = Reader::from_path(file)?;
+        let records: Result<Vec<_>, _> = reader.records().collect();
+        let records = records?;
+        Ok(Fasta { records })
+    }
+}
 
-        for line in reader.lines() {
-            let line = line?.as_bytes().to_vec();
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-            if line.is_empty() {
-                return Err("Empty line in FASTA file".into());
-            }
+    #[test]
+    fn test_fasta_read() {
+        let fasta_data = b">seq1\nATCG\n>seq2\nGCTA\n";
 
-            if line[0] == b'>' {
-                if !seq.is_empty() && !chr.is_empty() {
-                    index.insert(chr.clone(), seq.clone());
-                }
-                chr = line[1..].to_vec();
-                seq.clear();
-            } else {
-                seq = line.to_vec();
-            }
-        }
+        let tmp = tempdir::TempDir::new("test_fasta_read").unwrap();
+        let path = tmp.path().join("test.fasta");
+        std::fs::write(&path, fasta_data).unwrap();
 
-        if !seq.is_empty() && !chr.is_empty() {
-            index.insert(chr, seq);
-        }
+        let result = Fasta::read(&path).unwrap().records;
 
-        Ok(Fasta { index })
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].head, b"seq1");
+        assert_eq!(result[0].seq, b"ATCG");
+        assert_eq!(result[1].head, b"seq2");
+        assert_eq!(result[1].seq, b"GCTA");
     }
 }
