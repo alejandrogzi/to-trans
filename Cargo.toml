@@ -4,7 +4,12 @@ version = "0.1.0"
 authors = ["alejandrogzi <jose.gonzalesdezavala1@unmsm.edu.pe>"]
 edition = "2021"
 license = "MIT"
-
+description = "A high-performance transcriptome builder from fasta + GTF/GFF"
+homepage = "https://github.com/alejandrogzi/to-trans"
+repository = "https://github.com/alejandrogzi/to-trans"
+readme = "README.md"
+keywords = ["transcriptome", "fasta", "gtf", "gff"]
+categories = ["command-line-utilities", "science"]
 
 [dependencies]
 clap = { version = "4.4.2", features = ["derive"] }
