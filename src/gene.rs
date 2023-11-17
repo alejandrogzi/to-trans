@@ -18,7 +18,7 @@ pub struct GeneModel {
 }
 
 impl GeneModel {
-    pub fn parse(file: &PathBuf) -> HashMap<String, HashMap<String, Vec<String>>> {
+    pub fn parse(file: &PathBuf, opt: String) -> HashMap<String, HashMap<String, Vec<String>>> {
         let mut transcripts: HashMap<String, HashMap<String, Vec<String>>> = HashMap::new();
         let rdr = csv::ReaderBuilder::new()
             .delimiter(b'\t')
@@ -30,29 +30,29 @@ impl GeneModel {
 
         for line in rdr {
             let line = line.unwrap();
-            match line.feature.as_str() {
-                "exon" => {
-                    let id = de_attr(line.attribute);
-                    let chr = line.seqname;
-                    let s = line.start;
-                    let e = line.end;
-                    let strand = line.strand;
 
-                    let transcript = transcripts.entry(id).or_insert(HashMap::new());
-
-                    transcript.entry("chr".to_string()).or_insert(vec![chr]);
-                    transcript
-                        .entry("strand".to_string())
-                        .or_insert(vec![strand]);
-
-                    let start = transcript.entry("start".to_string()).or_insert(Vec::new());
-                    start.push(s);
-
-                    let end = transcript.entry("end".to_string()).or_insert(Vec::new());
-                    end.push(e);
-                }
-                _ => continue,
+            if line.feature != opt {
+                continue;
             }
+
+            let id = de_attr(line.attribute);
+            let chr = line.seqname;
+            let s = line.start;
+            let e = line.end;
+            let strand = line.strand;
+
+            let transcript = transcripts.entry(id).or_insert(HashMap::new());
+
+            transcript.entry("chr".to_string()).or_insert(vec![chr]);
+            transcript
+                .entry("strand".to_string())
+                .or_insert(vec![strand]);
+
+            let start = transcript.entry("start".to_string()).or_insert(Vec::new());
+            start.push(s);
+
+            let end = transcript.entry("end".to_string()).or_insert(Vec::new());
+            end.push(e);
         }
         transcripts
     }
@@ -64,9 +64,9 @@ pub fn de_attr(input: String) -> String {
     let mut id = String::new();
 
     if input.contains("=") {
-        incr = 1
+        incr += 1
     } else {
-        incr = 2
+        incr += 2
     }
 
     let mut start = 0;
