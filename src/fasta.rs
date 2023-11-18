@@ -1,5 +1,4 @@
 use seq_io::fasta::{OwnedRecord, Reader};
-use std::error::Error;
 use std::path::PathBuf;
 
 pub struct Fasta {
@@ -7,7 +6,7 @@ pub struct Fasta {
 }
 
 impl Fasta {
-    pub fn read(file: &PathBuf) -> Result<Fasta, Box<dyn Error>> {
+    pub fn read(file: &PathBuf) -> Result<Fasta, seq_io::fasta::Error> {
         let mut reader = Reader::from_path(file)?;
         let records: Result<Vec<_>, _> = reader.records().collect();
         let records = records?;
