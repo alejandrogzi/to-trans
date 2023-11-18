@@ -1,6 +1,9 @@
 #![allow(dead_code)]
 
 use serde::Deserialize;
+
+use crate::errors::*;
+
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -35,7 +38,7 @@ impl GeneModel {
                 continue;
             }
 
-            let id = de_attr(line.attribute);
+            let id = de_attr(line.attribute).unwrap();
             let chr = line.seqname;
             let s = line.start;
             let e = line.end;
@@ -58,7 +61,7 @@ impl GeneModel {
     }
 }
 
-pub fn de_attr(input: String) -> String {
+pub fn de_attr(input: String) -> Result<String> {
     let bytes = input.as_bytes().iter().enumerate();
     let mut incr = 0;
     let mut id = String::new();
@@ -80,10 +83,15 @@ pub fn de_attr(input: String) -> String {
             start = i + incr;
         }
     }
-    return id;
+
+    if id.is_empty() {
+        return Err(Error::AttributeError(input));
+    }
+
+    Ok(id)
 }
 
-pub fn pair(line: &str) -> Option<(String, String)> {
+pub fn pair(line: &str) -> Result<(String, String)> {
     let mut bytes = line.as_bytes().iter();
     let i = if let Some(pos) = bytes.position(|b| *b == b' ' || *b == b'=') {
         pos
@@ -91,11 +99,19 @@ pub fn pair(line: &str) -> Option<(String, String)> {
         line.len()
     };
 
+    if i + 1 > line.len() {
+        return Err(Error::ParseAttributeError(line.to_string()));
+    }
+
     let key = &line[..i];
     let value = &line[i + 1..].trim_matches('"');
     // let value = get_transcript(*&line[i + 1..].trim_matches('"'), ".")?;
 
-    Some((key.to_string(), value.to_string()))
+    if key.is_empty() || value.is_empty() {
+        return Err(Error::ParseAttributeError(line.to_string()));
+    }
+
+    Ok((key.to_string(), value.to_string()))
 }
 
 pub fn get_transcript(transcript: &str, sep: &str) -> Option<String> {
@@ -122,13 +138,13 @@ mod tests {
     #[test]
     fn gff_de_attr() {
         let input = "gene_id=ENSG00000223972;transcript_id=ENST00000406473;";
-        assert_eq!(de_attr(input.to_string()), "ENST00000406473");
+        assert_eq!(de_attr(input.to_string()).unwrap(), "ENST00000406473");
     }
 
     #[test]
     fn gtf_de_attr() {
         let input = "gene_id \"ENSG00000223972\"; transcript_id \"ENST00000406473\";";
-        assert_eq!(de_attr(input.to_string()), "ENST00000406473");
+        assert_eq!(de_attr(input.to_string()).unwrap(), "ENST00000406473");
     }
 
     #[test]
@@ -136,7 +152,7 @@ mod tests {
         let line = "transcript_id=ENST00000406473";
         assert_eq!(
             pair(line),
-            Some(("transcript_id".to_string(), "ENST00000406473".to_string()))
+            Ok(("transcript_id".to_string(), "ENST00000406473".to_string()))
         );
     }
 
@@ -145,7 +161,25 @@ mod tests {
         let line = "transcript_id \"ENST00000406473\"";
         assert_eq!(
             pair(line),
-            Some(("transcript_id".to_string(), "ENST00000406473".to_string()))
+            Ok(("transcript_id".to_string(), "ENST00000406473".to_string()))
+        );
+    }
+
+    #[test]
+    fn attr_error() {
+        let line = "transcript_idENST00000406473";
+        assert_eq!(
+            pair(line),
+            Err(Error::ParseAttributeError(line.to_string()))
+        );
+    }
+
+    #[test]
+    fn empty_attr() {
+        let line = "";
+        assert_eq!(
+            de_attr(line.to_string()),
+            Err(Error::AttributeError(line.to_string()))
         );
     }
 }
