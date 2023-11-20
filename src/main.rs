@@ -37,25 +37,25 @@ const COMPLEMENT: [u8; 128] = {
 )]
 struct Args {
     /// FASTA file
-    #[clap(short, long, help = "Path to your .fa file")]
+    #[clap(short, long, help = "Path to .fa file")]
     fasta: PathBuf,
     /// GTF file
-    #[clap(short, long, help = "Path to your .gtf file")]
+    #[clap(short, long, help = "Path to annotation file")]
     gtf: PathBuf,
     // Exon or CDS
     #[clap(
         short,
         long,
-        help = "Feature to extract from GTF/GFF file [exon or CDS]. Default to exon",
+        help = "Feature to extract from GTF/GFF file (exon or CDS)",
         default_value = "exon"
     )]
-    opt: String,
+    mode: String,
     /// Output file
     #[clap(
         short,
         long,
         default_value = "transcriptome.fa",
-        help = "Path to output file. Default to ./transcriptome.fa"
+        help = "Path to output file"
     )]
     out: PathBuf,
 }
@@ -65,7 +65,7 @@ fn main() {
 
     let args = Args::parse();
 
-    let transcripts = GeneModel::parse(&args.gtf, args.opt);
+    let transcripts = GeneModel::parse(&args.gtf, args.mode);
     let mut records = Fasta::read(&args.fasta).unwrap().records;
     let mut output = File::create(&args.out).unwrap();
 
@@ -124,7 +124,9 @@ fn get_sequence(
     let mut seq = vec![];
     let start = start - 1;
     for record in records {
-        let head = String::from_utf8(record.head.to_vec()).unwrap();
+        //let head = String::from_utf8(record.head.to_vec()).unwrap();
+        let x = record.head.split(|&b| b == b' ').next().unwrap().to_vec();
+        let head = String::from_utf8(x).unwrap();
         if head.contains(chr) {
             seq = record.seq[start as usize..end as usize].to_vec();
 
