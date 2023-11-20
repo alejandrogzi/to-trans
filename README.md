@@ -65,7 +65,7 @@ takes 3.5s compared to GFFRead doubled times (6s and 12s for indexed and not
 indexed genomes, respectively).
 
 <p align="center">
-    <img width=600 align="center" src="./supp/bench.png">
+    <img width=600 align="center" src="./supp/bench.jpeg">
 </p>
 
 
