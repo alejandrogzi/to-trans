@@ -1,67 +1,46 @@
-#![allow(dead_code)]
-
-use serde::Deserialize;
-
 use crate::errors::*;
+use memchr::memchr;
 
-use std::collections::HashMap;
-use std::path::PathBuf;
-
-#[derive(Deserialize)]
+#[derive(Debug)]
 pub struct GeneModel {
-    seqname: String,
-    source: String,
-    feature: String,
-    start: String,
-    end: String,
-    score: String,
-    strand: String,
-    frame: String,
-    attribute: String,
+    pub chr: String,
+    pub feature: String,
+    pub start: u32,
+    pub end: u32,
+    pub strand: String,
+    pub transcript: String,
 }
 
 impl GeneModel {
-    pub fn parse(file: &PathBuf, opt: String) -> HashMap<String, HashMap<String, Vec<String>>> {
-        let mut transcripts: HashMap<String, HashMap<String, Vec<String>>> = HashMap::new();
-        let rdr = csv::ReaderBuilder::new()
-            .delimiter(b'\t')
-            .comment(Some(b'#'))
-            .has_headers(false)
-            .from_path(file)
-            .unwrap()
-            .into_deserialize::<GeneModel>();
+    pub fn parse(line: &str, opt: &str) -> Self {
+        let fields = line.split('\t').collect::<Vec<&str>>();
+        let feature = fields[2];
 
-        for line in rdr {
-            let line = line.unwrap();
-
-            if line.feature != opt {
-                continue;
+        if feature == opt {
+            // let id = de_attr(fields[8]).unwrap();
+            let id = mem_attr(fields[8]);
+            GeneModel {
+                chr: fields[0].to_string(),
+                feature: feature.to_string(),
+                start: fields[3].parse::<u32>().unwrap(),
+                end: fields[4].parse::<u32>().unwrap(),
+                strand: fields[6].to_string(),
+                transcript: id,
             }
-
-            let id = de_attr(line.attribute).unwrap();
-            let chr = line.seqname;
-            let s = line.start;
-            let e = line.end;
-            let strand = line.strand;
-
-            let transcript = transcripts.entry(id).or_insert(HashMap::new());
-
-            transcript.entry("chr".to_string()).or_insert(vec![chr]);
-            transcript
-                .entry("strand".to_string())
-                .or_insert(vec![strand]);
-
-            let start = transcript.entry("start".to_string()).or_insert(Vec::new());
-            start.push(s);
-
-            let end = transcript.entry("end".to_string()).or_insert(Vec::new());
-            end.push(e);
+        } else {
+            GeneModel {
+                chr: String::new(),
+                feature: String::new(),
+                start: 0,
+                end: 0,
+                strand: String::new(),
+                transcript: String::new(),
+            }
         }
-        transcripts
     }
 }
 
-pub fn de_attr(input: String) -> Result<String> {
+pub fn de_attr(input: &str) -> Result<String> {
     let bytes = input.as_bytes().iter().enumerate();
     let mut incr = 0;
     let mut id = String::new();
@@ -85,7 +64,7 @@ pub fn de_attr(input: String) -> Result<String> {
     }
 
     if id.is_empty() {
-        return Err(Error::AttributeError(input));
+        return Err(Error::AttributeError(input.to_string()));
     }
 
     Ok(id)
@@ -114,21 +93,18 @@ pub fn pair(line: &str) -> Result<(String, String)> {
     Ok((key.to_string(), value.to_string()))
 }
 
-pub fn get_transcript(transcript: &str, sep: &str) -> Option<String> {
-    let bytes = transcript.as_bytes().iter().enumerate();
-    let start = 0;
-    let mut word = String::new();
+fn mem_attr(line: &str) -> String {
+    let bytes = line.as_bytes();
+    let core = &bytes[memchr(b't', bytes).unwrap()..];
+    let comma = &core[..memchr(b';', core).unwrap()];
+    let quote = &comma[memchr(b'"', comma).unwrap() + 1..];
 
-    for (i, byte) in bytes {
-        if *byte == sep.as_bytes()[0] {
-            word.push_str(&transcript[start..i]);
-        }
-    }
-    if !word.is_empty() {
-        return Some(word);
-    } else {
-        return Some(transcript.to_string());
-    }
+    let transcript = String::from_utf8(quote.to_vec())
+        .unwrap()
+        .trim_end_matches('"')
+        .to_string();
+
+    transcript
 }
 
 #[cfg(test)]
@@ -138,13 +114,13 @@ mod tests {
     #[test]
     fn gff_de_attr() {
         let input = "gene_id=ENSG00000223972;transcript_id=ENST00000406473;";
-        assert_eq!(de_attr(input.to_string()).unwrap(), "ENST00000406473");
+        assert_eq!(de_attr(input).unwrap(), "ENST00000406473");
     }
 
     #[test]
     fn gtf_de_attr() {
         let input = "gene_id \"ENSG00000223972\"; transcript_id \"ENST00000406473\";";
-        assert_eq!(de_attr(input.to_string()).unwrap(), "ENST00000406473");
+        assert_eq!(de_attr(input).unwrap(), "ENST00000406473");
     }
 
     #[test]
@@ -177,9 +153,6 @@ mod tests {
     #[test]
     fn empty_attr() {
         let line = "";
-        assert_eq!(
-            de_attr(line.to_string()),
-            Err(Error::AttributeError(line.to_string()))
-        );
+        assert_eq!(de_attr(line), Err(Error::AttributeError(line.to_string())));
     }
 }
