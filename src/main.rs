@@ -6,9 +6,12 @@
 //! Usage:
 //! to-trans <fasta> <gtf/gff> <opt> <output>
 
+use std::collections::HashMap;
 use std::fs::File;
-use std::io::Write;
+use std::io::{BufWriter, Write};
 use std::path::PathBuf;
+
+use rayon::prelude::*;
 
 use clap::{self, Parser};
 
@@ -65,49 +68,80 @@ fn main() {
 
     let args = Args::parse();
 
-    let transcripts = GeneModel::parse(&args.gtf, args.mode);
-    let mut records = Fasta::read(&args.fasta).unwrap().records;
-    let mut output = File::create(&args.out).unwrap();
+    let gtf = reader(&args.gtf).unwrap();
+    let records = parallel_parse(&gtf, &args.mode).unwrap();
+    let seqs = Fasta::read(&args.fasta).unwrap().records;
+    let mut writer = BufWriter::new(File::create(args.out).unwrap());
 
-    for (transcript, attributes) in transcripts {
-        let chr = &attributes["chr"][0];
-        let strand = &attributes["strand"][0];
-        let mut starts = attributes["start"]
-            .iter()
-            .map(|x| x.parse::<u32>().unwrap())
-            .collect::<Vec<u32>>();
-        let mut ends = attributes["end"]
-            .iter()
-            .map(|x| x.parse::<u32>().unwrap())
-            .collect::<Vec<u32>>();
-        let mut seq = String::new();
+    // {transcript : (chr, strand, [starts], [ends]))}
+    let transcripts: HashMap<String, (String, String, Vec<u32>, Vec<u32>)> = records
+        .into_par_iter()
+        .fold(
+            || HashMap::new(), // Create an empty local HashMap as the accumulator.
+            |mut local_transcripts, record| {
+                let (chr, strand, start, end, transcript) = (
+                    record.chr,
+                    record.strand,
+                    record.start,
+                    record.end,
+                    record.transcript,
+                );
 
-        match strand.as_str() {
-            "+" => {
-                starts.sort_unstable();
-                ends.sort_unstable();
+                let entry = local_transcripts
+                    .entry(transcript)
+                    .or_insert_with(|| (chr.clone(), strand.clone(), Vec::new(), Vec::new()));
+                entry.2.push(start);
+                entry.3.push(end);
 
-                for (i, start) in starts.iter().enumerate() {
-                    let end = ends[i];
-                    let part = get_sequence(&mut records, chr, *start, end, strand).unwrap();
-                    seq.push_str(&String::from_utf8(part).unwrap());
+                local_transcripts
+            },
+        )
+        .reduce(
+            || HashMap::new(), // Create an empty HashMap for the reducing step.
+            |mut combined_transcripts, local_transcripts| {
+                // Merge the local accumulator into the combined one.
+                for (transcript, (chr, strand, starts, ends)) in local_transcripts {
+                    let combined_entry = combined_transcripts
+                        .entry(transcript)
+                        .or_insert_with(|| (chr, strand, Vec::new(), Vec::new()));
+                    combined_entry.2.extend(starts);
+                    combined_entry.3.extend(ends);
                 }
-            }
-            "-" => {
-                starts.sort_unstable_by(|a, b| b.cmp(a));
-                ends.sort_unstable_by(|a, b| b.cmp(a));
+                combined_transcripts
+            },
+        );
 
-                for (i, start) in starts.iter().enumerate() {
-                    let end = ends[i];
-                    let part = get_sequence(&mut records, chr, *start, end, strand).unwrap();
-                    seq.push_str(&String::from_utf8(part).unwrap());
+    for (transcript, (chr, strand, mut starts, mut ends)) in transcripts {
+        if !transcript.is_empty() {
+            let mut seq = String::new();
+            match strand.as_str() {
+                "+" => {
+                    starts.sort_unstable();
+                    ends.sort_unstable();
+
+                    for (i, &start) in starts.iter().enumerate() {
+                        let end = ends[i];
+                        if let Some(part) = get_sequence(&seqs, &chr, start, end, &strand) {
+                            seq.push_str(&String::from_utf8(part).unwrap());
+                        }
+                    }
+                    writeln!(writer, ">{}\n{}", transcript, seq).unwrap();
                 }
+                "-" => {
+                    starts.sort_unstable_by(|a, b| b.cmp(a));
+                    ends.sort_unstable_by(|a, b| b.cmp(a));
+
+                    for (i, &start) in starts.iter().enumerate() {
+                        let end = ends[i];
+                        if let Some(part) = get_sequence(&seqs, &chr, start, end, &strand) {
+                            seq.push_str(&String::from_utf8(part).unwrap());
+                        }
+                    }
+                    writeln!(writer, ">{}\n{}", transcript, seq).unwrap();
+                }
+                _ => (),
             }
-            _ => continue,
         }
-        output
-            .write_all(format!(">{}\n{}\n", transcript, seq).as_bytes())
-            .unwrap();
     }
 
     let duration = time.elapsed();
@@ -115,15 +149,15 @@ fn main() {
 }
 
 fn get_sequence(
-    records: &Vec<seq_io::fasta::OwnedRecord>,
+    seqs: &[seq_io::fasta::OwnedRecord],
     chr: &str,
     start: u32,
     end: u32,
-    strand: &String,
+    strand: &str,
 ) -> Option<Vec<u8>> {
     let mut seq = vec![];
     let start = start - 1;
-    for record in records {
+    for record in seqs {
         //let head = String::from_utf8(record.head.to_vec()).unwrap();
         let x = record.head.split(|&b| b == b' ').next().unwrap().to_vec();
         let head = String::from_utf8(x).unwrap();
