@@ -1,4 +1,4 @@
-![version-badge](https://img.shields.io/badge/version-0.1.0-green)
+![version-badge](https://img.shields.io/badge/version-0.2.0-green)
 ![Crates.io](https://img.shields.io/crates/v/to-trans)
 ![GitHub](https://img.shields.io/github/license/alejandrogzi/noel?color=blue)
 
