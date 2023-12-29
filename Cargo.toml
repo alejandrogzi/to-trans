@@ -18,6 +18,8 @@ seq_io = "0.3.2"
 tempdir = "0.3.7"
 memchr = "2.6.4"
 rayon = "1.5.1"
+num_cpus = "1.13.0"
+colored = "2.0.0"
 
 [profile.release]
 lto = true
