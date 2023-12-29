@@ -10,7 +10,7 @@ This is a command-line tool written in Rust designed to build a transcriptome
 by using a genome (.fa) and a gene model (.gtf/.gff).
 
 ## Usage
-``` bash
+``` plaintext
 High-performance transcriptome builder from fasta + GTF/GFF
 
 Usage: to-trans --fasta <FASTA> --gtf <GTF> [OPTIONS]
