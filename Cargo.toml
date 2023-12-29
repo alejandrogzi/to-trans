@@ -1,6 +1,6 @@
 [package]
 name = "to-trans"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["alejandrogzi <jose.gonzalesdezavala1@unmsm.edu.pe>"]
 edition = "2021"
 license = "MIT"
@@ -13,11 +13,13 @@ categories = ["command-line-utilities", "science"]
 
 [dependencies]
 clap = { version = "4.4.2", features = ["derive"] }
-serde = { version = "^1", features = ["derive"] }
 thiserror = "1.0.50"
-csv = "1.1.6"
 seq_io = "0.3.2"
 tempdir = "0.3.7"
+memchr = "2.6.4"
+rayon = "1.5.1"
+num_cpus = "1.13.0"
+colored = "2.0.0"
 
 [profile.release]
 lto = true

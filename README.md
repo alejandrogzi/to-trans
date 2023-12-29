@@ -1,4 +1,4 @@
-![version-badge](https://img.shields.io/badge/version-0.1.0-green)
+![version-badge](https://img.shields.io/badge/version-0.2.0-green)
 ![Crates.io](https://img.shields.io/crates/v/to-trans)
 ![GitHub](https://img.shields.io/github/license/alejandrogzi/noel?color=blue)
 
@@ -10,23 +10,29 @@ This is a command-line tool written in Rust designed to build a transcriptome
 by using a genome (.fa) and a gene model (.gtf/.gff).
 
 ## Usage
-``` rust
+``` plaintext
 High-performance transcriptome builder from fasta + GTF/GFF
 
-Usage: to-trans [OPTIONS] --fasta <FASTA> --gtf <GTF>
+Usage: to-trans --fasta <FASTA> --gtf <GTF> [OPTIONS]
 
 --Arguments:
   -f, --fasta <FASTA>  Path to your .fa file
-  -g, --gtf <GTF>      Path to your .gtf file
+  -g, --gtf <GTF/GFF>      Path to your .gtf/.gff file
 
 Options:
   -m, --mode <MODE>      Feature to extract from GTF/GFF file (exon or CDS) [default: exon]
   -o, --out <OUT>      Path to output file [default: transcriptome.fa].
+  -t, --threads <THREADS>      Number of threads [default: max ncpus] 
   -h, --help           Print help
   -V, --version        Print version
 ```
 
 #### crate: [https://crates.io/crates/to-trans](https://crates.io/crates/to-trans)
+
+> What's new on v.0.2.0
+>
+> - Now to-trans is ~2-3s faster!
+> - A parallel approach is now the main algorithm to assemble transcript sequences
 
 > Work coming...
 >
@@ -50,6 +56,9 @@ to build to-trans, do:
 by default to-trans uses `exon` mode and sends the output to `./transcriptome.fa`
 
 ## Benchmark
+
+> Note that this benchamark is outdated. Now to-trans is ~2-3s faster!
+> For the human genome/gtf, to-trans takes 6 seconds to build a complete transcriptome, that is approximately x3 times faster than GFFRead!
 
 Besides some particular species, such as human (GRCh38) or mouse (GRCm39) 
 that have transcriptomes available, most of the animal kingdom does not 
