@@ -17,7 +17,6 @@ impl GeneModel {
         let feature = fields[2];
 
         if feature == opt {
-            // let id = de_attr(fields[8]).unwrap();
             let id = mem_attr(fields[8]);
             GeneModel {
                 chr: fields[0].to_string(),
