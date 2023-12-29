@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::errors::*;
 use memchr::memchr;
 
@@ -17,7 +19,8 @@ impl GeneModel {
         let feature = fields[2];
 
         if feature == opt {
-            let id = mem_attr(fields[8]);
+            let id = de_attr(fields[8]).unwrap();
+            // let id = mem_attr(fields[8]);
             GeneModel {
                 chr: fields[0].to_string(),
                 feature: feature.to_string(),
